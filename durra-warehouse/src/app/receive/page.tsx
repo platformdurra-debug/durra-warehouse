@@ -32,14 +32,14 @@ export default function WarehousePage() {
   return (
     <div style={{ background: "#0A1628", minHeight: "100vh", paddingBottom: 90, fontFamily: "Tajawal, sans-serif", direction: "rtl" }}>
       <div style={{ padding: "56px 20px 16px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-        <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 20, fontWeight: 700, color: "#fff", textAlign: "center", marginBottom: 4 }}>{📥} استلام المرتجعات</div>
+        <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 20, fontWeight: 700, color: "#fff", textAlign: "center", marginBottom: 4 }}>📥 استلام المرتجعات</div>
         <div style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", textAlign: "center", marginBottom: 14 }}>{items.length} قطعة</div>
         <input value={search} onChange={e => setSearch(e.target.value)} placeholder="بحث..." style={{ width: "100%", padding: "10px 14px", borderRadius: 12, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.06)", color: "#fff", fontFamily: "Tajawal, sans-serif", fontSize: 13, outline: "none", textAlign: "right", direction: "rtl" }} />
       </div>
       <div style={{ padding: "12px 20px", display: "flex", flexDirection: "column", gap: 10 }}>
         {filtered.length === 0 ? (
           <div style={{ textAlign: "center", padding: "60px 20px" }}>
-            <div style={{ fontSize: 48, marginBottom: 12 }}>{`📥 استلام المرتجعات`}</div>
+            <div style={{ fontSize: 48, marginBottom: 12 }}>📥</div>
             <div style={{ fontSize: 14, color: "rgba(255,255,255,0.3)" }}>لا توجد قطع حالياً</div>
           </div>
         ) : filtered.map(item => (
