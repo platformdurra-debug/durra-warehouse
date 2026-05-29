@@ -39,7 +39,7 @@ export default function WarehousePage() {
       <div style={{ padding: "12px 20px", display: "flex", flexDirection: "column", gap: 10 }}>
         {filtered.length === 0 ? (
           <div style={{ textAlign: "center", padding: "60px 20px" }}>
-            <div style={{ fontSize: 48, marginBottom: 12 }}>{🚚}</div>
+            <div style={{ fontSize: 48, marginBottom: 12 }}>{`🚚 تتبع التوصيل`}</div>
             <div style={{ fontSize: 14, color: "rgba(255,255,255,0.3)" }}>لا توجد قطع حالياً</div>
           </div>
         ) : filtered.map(item => (
