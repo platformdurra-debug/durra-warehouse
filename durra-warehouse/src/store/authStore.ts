@@ -28,13 +28,9 @@ function clearRoleCookie() {
 }
 
 function redirectToCorrectApp(role: string) {
-  const targetUrl = APP_URLS[role] || APP_URLS.customer;
   if (typeof window === "undefined") return;
-  const current = window.location.origin;
-  const target = targetUrl.replace(/\/$/, "");
-  if (!current.includes(target.replace("http://", "").replace("https://", "").split(":")[0])) {
-    window.location.href = target;
-  }
+  const targetUrl = APP_URLS[role] || APP_URLS.customer;
+  window.location.href = targetUrl.replace(/\/$/, "") + "/dashboard";
 }
 
 interface AuthStore {
@@ -91,10 +87,20 @@ export const useAuthStore = create<AuthStore>((set) => ({
       if (firebaseUser) {
         try {
           const snap = await getDoc(doc(db, "users", firebaseUser.uid));
-          if (snap.exists()) { const u = snap.data() as User; set({ user: u, loading: false }); setRoleCookie(u.role); }
-          else set({ user: null, loading: false });
-        } catch { set({ user: null, loading: false }); }
-      } else { set({ user: null, loading: false }); clearRoleCookie(); }
+          if (snap.exists()) {
+            const u = snap.data() as User;
+            set({ user: u, loading: false });
+            setRoleCookie(u.role);
+          } else {
+            set({ user: null, loading: false });
+          }
+        } catch {
+          set({ user: null, loading: false });
+        }
+      } else {
+        set({ user: null, loading: false });
+        clearRoleCookie();
+      }
     });
   },
 }));
