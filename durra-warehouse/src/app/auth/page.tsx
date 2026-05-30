@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuthStore } from "@/store/authStore";
 import { Eye, EyeOff } from "lucide-react";
 
@@ -7,7 +7,11 @@ export default function WarehouseAuthPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPass, setShowPass] = useState(false);
-  const { login, loading, error } = useAuthStore();
+  const { login, loading, error, init } = useAuthStore();
+
+  useEffect(() => {
+    init();
+  }, []);
 
   return (
     <div style={{ minHeight: "100vh", background: "linear-gradient(160deg, #064E3B, #065F46 60%, #F0FAF6)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24, fontFamily: "Tajawal, sans-serif", direction: "rtl" }}>
