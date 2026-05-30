@@ -1,100 +1,51 @@
-import { create } from "zustand";
-import { User } from "@/types";
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from "firebase/auth";
-import { doc, getDoc, setDoc } from "firebase/firestore";
-import { auth, db } from "@/lib/firebase";
+"use client";
+import { useState, useEffect } from "react";
+import { useAuthStore } from "@/store/authStore";
+import { Eye, EyeOff } from "lucide-react";
 
-const isDev = process.env.NODE_ENV === "development";
-const APP_URLS: Record<string, string> = {
-  customer:  isDev ? "http://localhost:3000" : (process.env.NEXT_PUBLIC_CUSTOMER_URL  || "https://durrahonline.com"),
-  seller:    isDev ? "http://localhost:3001" : (process.env.NEXT_PUBLIC_SELLER_URL    || "https://seller.durrahonline.com"),
-  provider:  isDev ? "http://localhost:3002" : (process.env.NEXT_PUBLIC_PROVIDER_URL  || "https://provider.durrahonline.com"),
-  admin:     isDev ? "http://localhost:3003" : (process.env.NEXT_PUBLIC_ADMIN_URL     || "https://admin.durrahonline.com"),
-  warehouse: isDev ? "http://localhost:3004" : (process.env.NEXT_PUBLIC_WAREHOUSE_URL || "https://warehouse.durrahonline.com"),
-};
+export default function WarehouseAuthPage() {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPass, setShowPass] = useState(false);
+  const { login, loading, error, init } = useAuthStore();
 
-function setRoleCookie(role: string) {
-  if (typeof document !== "undefined") {
-    const domain = isDev ? "localhost" : ".durrahonline.com";
-    document.cookie = `durra-role=${role};path=/;domain=${domain};max-age=604800;samesite=lax`;
-  }
+  useEffect(() => { init(); }, []);
+
+  const handleLogin = async () => {
+    await login(email, password);
+    window.location.href = "/dashboard";
+  };
+
+  return (
+    <div style={{ minHeight: "100vh", background: "linear-gradient(160deg, #064E3B, #065F46 60%, #F0FAF6)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24, fontFamily: "Tajawal, sans-serif", direction: "rtl" }}>
+      <div style={{ textAlign: "center", marginBottom: 40 }}>
+        <div style={{ fontFamily: "'Playfair Display', serif", fontStyle: "italic", fontSize: 52, fontWeight: 700, color: "#34D399", lineHeight: 1 }}>درّة</div>
+        <div style={{ fontSize: 11, color: "rgba(52,211,153,0.55)", letterSpacing: 3, marginTop: 6 }}>— بوابة المستودع —</div>
+      </div>
+      <div style={{ width: "100%", maxWidth: 380, background: "rgba(255,255,255,0.08)", borderRadius: 24, border: "1px solid rgba(52,211,153,0.2)", padding: 28, backdropFilter: "blur(10px)" }}>
+        <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 20, fontWeight: 700, color: "#fff", textAlign: "center", marginBottom: 24 }}>تسجيل الدخول</div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <input
+            style={{ width: "100%", padding: "14px 16px", borderRadius: 14, border: "1.5px solid rgba(52,211,153,0.2)", fontSize: 14, fontFamily: "Tajawal, sans-serif", background: "rgba(255,255,255,0.06)", color: "#fff", outline: "none", textAlign: "right", direction: "rtl" }}
+            placeholder="البريد الإلكتروني" value={email} onChange={e => setEmail(e.target.value)} type="email"
+          />
+          <div style={{ position: "relative" }}>
+            <input
+              style={{ width: "100%", padding: "14px 16px", borderRadius: 14, border: "1.5px solid rgba(52,211,153,0.2)", fontSize: 14, fontFamily: "Tajawal, sans-serif", background: "rgba(255,255,255,0.06)", color: "#fff", outline: "none", textAlign: "right", direction: "rtl" }}
+              placeholder="كلمة المرور" value={password} onChange={e => setPassword(e.target.value)}
+              type={showPass ? "text" : "password"} onKeyDown={e => e.key === "Enter" && handleLogin()}
+            />
+            <button onClick={() => setShowPass(!showPass)} style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer" }}>
+              {showPass ? <EyeOff size={16} color="rgba(52,211,153,0.5)" /> : <Eye size={16} color="rgba(52,211,153,0.5)" />}
+            </button>
+          </div>
+          {error && <div style={{ padding: "10px 14px", borderRadius: 10, background: "rgba(220,38,38,0.1)", border: "1px solid rgba(220,38,38,0.2)", fontSize: 13, color: "#FCA5A5" }}>⚠️ {error}</div>}
+          <button onClick={handleLogin} disabled={loading || !email || !password}
+            style={{ width: "100%", padding: "15px", borderRadius: 14, border: "none", cursor: loading || !email || !password ? "not-allowed" : "pointer", fontFamily: "Tajawal, sans-serif", fontWeight: 700, fontSize: 16, background: !email || !password ? "rgba(255,255,255,0.08)" : "linear-gradient(135deg, #059669, #34D399)", color: !email || !password ? "rgba(255,255,255,0.3)" : "#fff", opacity: loading ? 0.7 : 1, transition: "all 0.2s" }}>
+            {loading ? "جاري الدخول..." : "دخول"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }
-
-function clearRoleCookie() {
-  if (typeof document !== "undefined") {
-    const domain = isDev ? "localhost" : ".durrahonline.com";
-    document.cookie = `durra-role=;path=/;domain=${domain};max-age=0`;
-  }
-}
-
-function redirectToCorrectApp(role: string) {
-  const targetUrl = APP_URLS[role] || APP_URLS.customer;
-  if (typeof window === "undefined") return;
-  const current = window.location.origin;
-  const target = targetUrl.replace(/\/$/, "");
-  if (!current.includes(target.replace("http://", "").replace("https://", "").split(":")[0])) {
-    window.location.href = target;
-  }
-}
-
-interface AuthStore {
-  user: User | null; loading: boolean; error: string | null;
-  login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, name: string, phone: string) => Promise<void>;
-  logout: () => Promise<void>;
-  init: () => void;
-}
-
-export const useAuthStore = create<AuthStore>((set) => ({
-  user: null, loading: true, error: null,
-
-  login: async (email, password) => {
-    try {
-      set({ error: null });
-      const result = await signInWithEmailAndPassword(auth, email, password);
-      const snap = await getDoc(doc(db, "users", result.user.uid));
-      const userData = snap.data() as User;
-      set({ user: userData });
-      setRoleCookie(userData.role);
-      redirectToCorrectApp(userData.role);
-    } catch (e: any) {
-      const msg = e.code === "auth/wrong-password" || e.code === "auth/user-not-found"
-        ? "البريد الإلكتروني أو كلمة المرور غير صحيحة"
-        : e.code === "auth/too-many-requests" ? "محاولات كثيرة — انتظري قليلاً" : e.message;
-      set({ error: msg });
-    }
-  },
-
-  register: async (email, password, name, phone) => {
-    try {
-      set({ error: null });
-      const result = await createUserWithEmailAndPassword(auth, email, password);
-      const newUser: User = { uid: result.user.uid, email, displayName: name, phone, role: "customer", createdAt: new Date(), points: 0, level: "normal" };
-      await setDoc(doc(db, "users", result.user.uid), newUser);
-      set({ user: newUser });
-      setRoleCookie("customer");
-    } catch (e: any) {
-      const msg = e.code === "auth/email-already-in-use" ? "هذا البريد مسجّل مسبقاً" : e.code === "auth/weak-password" ? "كلمة المرور ضعيفة" : e.message;
-      set({ error: msg });
-    }
-  },
-
-  logout: async () => {
-    await signOut(auth);
-    clearRoleCookie();
-    set({ user: null });
-    if (typeof window !== "undefined") window.location.href = "/auth";
-  },
-
-  init: () => {
-    onAuthStateChanged(auth, async (firebaseUser) => {
-      if (firebaseUser) {
-        try {
-          const snap = await getDoc(doc(db, "users", firebaseUser.uid));
-          if (snap.exists()) { const u = snap.data() as User; set({ user: u, loading: false }); setRoleCookie(u.role); }
-          else set({ user: null, loading: false });
-        } catch { set({ user: null, loading: false }); }
-      } else { set({ user: null, loading: false }); clearRoleCookie(); }
-    });
-  },
-}));
