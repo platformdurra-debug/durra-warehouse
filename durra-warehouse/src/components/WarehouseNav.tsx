@@ -4,11 +4,12 @@ import { usePathname } from "next/navigation";
 
 const NAV = [
   { href: "/dashboard", label: "الرئيسية", icon: "🏠" },
+  { href: "/calendar",  label: "التقويم",  icon: "📅" },
   { href: "/send",      label: "إرسال",    icon: "📤" },
   { href: "/receive",   label: "استلام",   icon: "📥" },
   { href: "/cleaning",  label: "تنظيف",   icon: "🧺" },
-  { href: "/condition", label: "صيانة",   icon: "🔧" },
   { href: "/tracking",  label: "توصيل",   icon: "🚚" },
+  { href: "/history",   label: "السجل",   icon: "📋" },
 ];
 
 export default function WarehouseNav() {
@@ -16,11 +17,11 @@ export default function WarehouseNav() {
   if (path === "/auth") return null;
   return (
     <div className="bottom-nav">
-      <div className="bottom-nav-inner">
+      <div className="bottom-nav-inner" style={{ overflowX: "auto", scrollbarWidth: "none" }}>
         {NAV.map(item => {
           const active = path === item.href || (item.href !== "/" && path.startsWith(item.href));
           return (
-            <Link href={item.href} key={item.href} style={{ textDecoration: "none", flex: 1 }}>
+            <Link href={item.href} key={item.href} style={{ textDecoration: "none", flex: "0 0 auto", minWidth: 52 }}>
               <div className={`bn-item ${active ? "active" : ""}`}>
                 <div className="bn-bar" />
                 <span className="bn-icon">{item.icon}</span>
