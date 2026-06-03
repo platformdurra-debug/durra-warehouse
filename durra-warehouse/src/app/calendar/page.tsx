@@ -20,7 +20,7 @@ export default function WarehouseCalendarPage() {
   useEffect(() => {
     if (loading || !user) return;
     setFetching(true);
-    getDocs(query(collection(db, "bookings"), where("status", "in", ["confirmed", "active", "pending"])))
+    getDocs(query(collection(db, "bookings"), where("status", "in", ["confirmed", "active"])))
       .then(snap => {
         setBookings(snap.docs.map(d => ({ id: d.id, ...d.data() })));
         setFetching(false);
