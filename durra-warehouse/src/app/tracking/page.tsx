@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { collection, getDocs, query, where, updateDoc, doc } from "firebase/firestore";
+import { collection, getDocs, query, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/hooks/useAuth";
 import { useRouter } from "next/navigation";
@@ -12,23 +12,16 @@ export default function Page() {
   const [items, setItems] = useState<any[]>([]);
   const [fetching, setFetching] = useState(true);
   const [search, setSearch] = useState("");
-  const [updating, setUpdating] = useState<string | null>(null);
 
   useEffect(() => { if (!loading && !user) router.push("/auth"); }, [user, loading]);
   useEffect(() => {
     if (!user) return;
-    getDocs(query(collection(db, "warehouse"), where("status", "==", "transit")))
-      .then(snap => { setItems(snap.docs.map(d => ({ id: d.id, ...d.data() }))); setFetching(false); });
+    getDocs(query(collection(db, "bookings"), where("status", "==", "active")))
+      .then(snap => { setItems(snap.docs.map(d => ({ id: d.id, ...d.data() }))); setFetching(false); })
+      .catch(() => setFetching(false));
   }, [user]);
 
-  const updateStatus = async (id: string) => {
-    setUpdating(id);
-    await updateDoc(doc(db, "warehouse", id), { status: "rented", updatedAt: new Date() });
-    setItems(prev => prev.filter(i => i.id !== id));
-    setUpdating(null);
-  };
-
-  const filtered = items.filter(i => !search || i.dressName?.includes(search) || i.dressId?.includes(search));
+  const filtered = items.filter(i => !search || i.dressName?.includes(search) || i.customerName?.includes(search));
 
   if (fetching) return <div className="loading-screen"><div className="spinner" /></div>;
 
@@ -65,14 +58,14 @@ export default function Page() {
                   {item.sellerName && <div style={{ fontSize: 11, color: "var(--text3)", marginTop: 2 }}>المعرِضة: {item.sellerName}</div>}
                   {item.customerName && <div style={{ fontSize: 11, color: "var(--text3)" }}>العروس: {item.customerName}</div>}
                   {item.updatedAt && <div style={{ fontSize: 10, color: "var(--text4)", marginTop: 4 }}>
-                    {new Date(item.updatedAt?.seconds ? item.updatedAt.seconds * 1000 : item.updatedAt).toLocaleDateString("ar-BH")}
+                    {item.endDate?.seconds ? "الإرجاع: " + new Date(item.endDate.seconds * 1000).toLocaleDateString("ar-BH") : ""}
                   </div>}
                 </div>
               </div>
-              <button onClick={() => updateStatus(item.id)} disabled={updating === item.id} className="btn-gold"
-                style={{ opacity: updating === item.id ? 0.6 : 1 }}>
-                {updating === item.id ? "جاري التحديث..." : "تم الاستلام بالعروس ✓"}
-              </button>
+              <div style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 14px", borderRadius: 50, background: "rgba(42,107,173,0.1)" }}>
+                <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#2A6BAD" }} />
+                <span style={{ fontSize: 12, fontWeight: 700, color: "#2A6BAD" }}>مع العروس</span>
+              </div>
             </div>
           ))}
         </div>
