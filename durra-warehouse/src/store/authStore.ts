@@ -16,14 +16,14 @@ const APP_URLS: Record<string, string> = {
 function setRoleCookie(role: string) {
   if (typeof document !== "undefined") {
     const domain = isDev ? "localhost" : ".durrahonline.com";
-    document.cookie = `durra-role=${role};path=/;domain=${domain};max-age=604800;samesite=lax`;
+    document.cookie = `durra-role-warehouse=${role};path=/;domain=${domain};max-age=604800;samesite=lax`;
   }
 }
 
 function clearRoleCookie() {
   if (typeof document !== "undefined") {
     const domain = isDev ? "localhost" : ".durrahonline.com";
-    document.cookie = `durra-role=;path=/;domain=${domain};max-age=0`;
+    document.cookie = `durra-role-warehouse=;path=/;domain=${domain};max-age=0`;
   }
 }
 
@@ -50,9 +50,14 @@ export const useAuthStore = create<AuthStore>((set) => ({
       const result = await signInWithEmailAndPassword(auth, email, password);
       const snap = await getDoc(doc(db, "users", result.user.uid));
       const userData = snap.data() as User;
-      set({ user: userData });
-      setRoleCookie(userData.role);
-      redirectToCorrectApp(userData.role);
+      if (userData.role === "warehouse") {
+        setRoleCookie("warehouse");
+        set({ user: userData });
+        window.location.replace(`${APP_URLS.warehouse}/dashboard`);
+      } else {
+        set({ user: null });
+        window.location.replace(APP_URLS[userData.role] || APP_URLS.customer);
+      }
     } catch (e: any) {
       const msg = e.code === "auth/wrong-password" || e.code === "auth/user-not-found"
         ? "البريد الإلكتروني أو كلمة المرور غير صحيحة"
@@ -89,8 +94,13 @@ export const useAuthStore = create<AuthStore>((set) => ({
           const snap = await getDoc(doc(db, "users", firebaseUser.uid));
           if (snap.exists()) {
             const u = snap.data() as User;
-            set({ user: u, loading: false });
-            setRoleCookie(u.role);
+            if (u.role === "warehouse") {
+              setRoleCookie("warehouse");
+              set({ user: u, loading: false });
+            } else {
+              set({ user: null, loading: false });
+              if (typeof window !== "undefined") window.location.replace(APP_URLS[u.role] || APP_URLS.customer);
+            }
           } else {
             set({ user: null, loading: false });
           }
