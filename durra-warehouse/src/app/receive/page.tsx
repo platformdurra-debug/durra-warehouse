@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { collection, getDocs, query, where, updateDoc, doc } from "firebase/firestore";
+import { collection, getDocs, query, where, updateDoc, doc, addDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/hooks/useAuth";
 import { useRouter } from "next/navigation";
@@ -17,18 +17,36 @@ export default function Page() {
   useEffect(() => { if (!loading && !user) router.push("/auth"); }, [user, loading]);
   useEffect(() => {
     if (!user) return;
-    getDocs(query(collection(db, "warehouse"), where("status", "==", "rented")))
-      .then(snap => { setItems(snap.docs.map(d => ({ id: d.id, ...d.data() }))); setFetching(false); });
+    // الحجوزات النشطة (الفستان مع الزبونة، ننتظر إرجاعه)
+    getDocs(query(collection(db, "bookings"), where("status", "==", "active")))
+      .then(snap => { setItems(snap.docs.map(d => ({ id: d.id, ...d.data() }))); setFetching(false); })
+      .catch(() => setFetching(false));
   }, [user]);
 
-  const updateStatus = async (id: string) => {
+  const receiveItem = async (id: string) => {
     setUpdating(id);
-    await updateDoc(doc(db, "warehouse", id), { status: "cleaning", updatedAt: new Date() });
+    const item = items.find(i => i.id === id);
+
+    // الفستان رجع — ينتقل لمرحلة التنظيف، ونعلّم إنه تم الاستلام
+    await updateDoc(doc(db, "bookings", id), {
+      warehouseStatus: "cleaning",
+      returnedAt: serverTimestamp(),
+    });
+
+    await addDoc(collection(db, "warehouseHistory"), {
+      bookingId: id,
+      dressName: item?.dressName || "فستان",
+      customerName: item?.customerName || "",
+      newStatus: "cleaning",
+      action: "تم استلام الفستان من العروس — للتنظيف",
+      createdAt: serverTimestamp(),
+    });
+
     setItems(prev => prev.filter(i => i.id !== id));
     setUpdating(null);
   };
 
-  const filtered = items.filter(i => !search || i.dressName?.includes(search) || i.dressId?.includes(search));
+  const filtered = items.filter(i => !search || i.dressName?.includes(search) || i.customerName?.includes(search));
 
   if (fetching) return <div className="loading-screen"><div className="spinner" /></div>;
 
@@ -41,40 +59,43 @@ export default function Page() {
         </div>
         <div style={{ marginTop: 16 }}>
           <div className="page-header-title">استلام المرتجعات</div>
-          <div className="page-header-sub">{items.length} قطعة</div>
+          <div className="page-header-sub">{items.length} فستان مع العرائس</div>
         </div>
       </div>
 
       <div style={{ padding: "16px" }}>
         <input className="input" value={search} onChange={e => setSearch(e.target.value)}
-          placeholder="بحث بالاسم أو الكود..." style={{ marginBottom: 16 }} />
+          placeholder="بحث بالاسم أو العروس..." style={{ marginBottom: 16 }} />
 
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {filtered.length === 0 ? (
             <div className="empty-state">
-              <div className="empty-icon">📦</div>
-              <div className="empty-text">لا توجد قطع حالياً</div>
+              <div className="empty-icon">📥</div>
+              <div className="empty-text">لا توجد مرتجعات حالياً</div>
             </div>
-          ) : filtered.map(item => (
-            <div key={item.id} className="item-card">
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
-                <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#2A6BAD", flexShrink: 0, marginTop: 4 }} />
-                <div style={{ textAlign: "right", flex: 1, marginRight: 10 }}>
-                  <div style={{ fontSize: 15, fontWeight: 700, color: "var(--text)", marginBottom: 3 }}>{item.dressName || "فستان"}</div>
-                  <div style={{ fontSize: 11, color: "var(--text4)", fontFamily: "monospace" }}>{item.dressId?.slice(0, 14) || "—"}</div>
-                  {item.sellerName && <div style={{ fontSize: 11, color: "var(--text3)", marginTop: 2 }}>المعرِضة: {item.sellerName}</div>}
-                  {item.customerName && <div style={{ fontSize: 11, color: "var(--text3)" }}>العروس: {item.customerName}</div>}
-                  {item.updatedAt && <div style={{ fontSize: 10, color: "var(--text4)", marginTop: 4 }}>
-                    {new Date(item.updatedAt?.seconds ? item.updatedAt.seconds * 1000 : item.updatedAt).toLocaleDateString("ar-BH")}
-                  </div>}
+          ) : filtered.map(item => {
+            const end = item.endDate?.seconds ? new Date(item.endDate.seconds * 1000) : null;
+            const isLate = end && end < new Date();
+            return (
+              <div key={item.id} className="item-card">
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
+                  <div style={{ width: 10, height: 10, borderRadius: "50%", background: isLate ? "#C0392B" : "#D4880A", flexShrink: 0, marginTop: 4 }} />
+                  <div style={{ textAlign: "right", flex: 1, marginRight: 10 }}>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: "var(--text)", marginBottom: 3 }}>{item.dressName || "فستان"}</div>
+                    <div style={{ fontSize: 11, color: "var(--text4)", fontFamily: "monospace" }}>#{item.id.slice(0, 8)}</div>
+                    {item.customerName && <div style={{ fontSize: 12, color: "var(--text2)", marginTop: 3 }}>👰 {item.customerName}</div>}
+                    {end && <div style={{ fontSize: 11, color: isLate ? "#C0392B" : "var(--text3)", marginTop: 4, fontWeight: 600 }}>
+                      موعد الإرجاع: {end.toLocaleDateString("ar-BH", { day: "numeric", month: "long" })} {isLate ? "⚠️ متأخر" : ""}
+                    </div>}
+                  </div>
                 </div>
+                <button onClick={() => receiveItem(item.id)} disabled={updating === item.id} className="btn-gold"
+                  style={{ opacity: updating === item.id ? 0.6 : 1 }}>
+                  {updating === item.id ? "جاري التحديث..." : "تم الاستلام ✓"}
+                </button>
               </div>
-              <button onClick={() => updateStatus(item.id)} disabled={updating === item.id} className="btn-gold"
-                style={{ opacity: updating === item.id ? 0.6 : 1 }}>
-                {updating === item.id ? "جاري التحديث..." : "تأكيد الاستلام ✓"}
-              </button>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
       <WarehouseNav />
