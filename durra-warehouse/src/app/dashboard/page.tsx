@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { collection, getDocs } from "firebase/firestore";
+import { collection, getDocs, query, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/hooks/useAuth";
 import { useRouter } from "next/navigation";
@@ -25,23 +25,23 @@ export default function WarehouseDashboard() {
   useEffect(() => { if (!loading && !user) router.push("/auth"); }, [user, loading]);
   useEffect(() => {
     if (!user) return;
-    getDocs(collection(db, "warehouse")).then(snap => {
+    getDocs(collection(db, "bookings")).then(snap => {
       const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       setItems(data);
       setStats({
-        available:   data.filter((d: any) => d.status === "available").length,
-        rented:      data.filter((d: any) => d.status === "rented").length,
-        cleaning:    data.filter((d: any) => d.status === "cleaning").length,
-        maintenance: data.filter((d: any) => d.status === "maintenance").length,
-        transit:     data.filter((d: any) => d.status === "transit").length,
+        available:   data.filter((d: any) => d.status === "confirmed").length,            // جاهزة للإرسال
+        rented:      data.filter((d: any) => d.status === "active").length,                // مع العرائس
+        cleaning:    data.filter((d: any) => d.warehouseStatus === "cleaning").length,     // قيد التنظيف
+        maintenance: data.filter((d: any) => d.warehouseStatus === "maintenance").length,  // صيانة/ضرر
+        transit:     data.filter((d: any) => d.status === "active").length,                // في الطريق
       });
       setFetching(false);
-    });
+    }).catch(() => setFetching(false));
   }, [user]);
 
   const SECTIONS = [
-    { href: "/send",      label: "إرسال",  desc: "جاهزة للإرسال",    count: stats.available,   color: "#2D8A5E" },
-    { href: "/receive",   label: "استلام", desc: "مرتجعات للاستلام", count: stats.rented,      color: "#2A6BAD" },
+    { href: "/send",      label: "إرسال",  desc: "طلبات جاهزة",      count: stats.available,   color: "#2D8A5E" },
+    { href: "/receive",   label: "استلام", desc: "مع العرائس",       count: stats.rented,      color: "#2A6BAD" },
     { href: "/cleaning",  label: "تنظيف", desc: "في التنظيف",        count: stats.cleaning,    color: "#D4880A" },
     { href: "/condition", label: "صيانة", desc: "في الصيانة",        count: stats.maintenance, color: "#6B4FAD" },
     { href: "/tracking",  label: "توصيل", desc: "في الطريق",         count: stats.transit,     color: "#C0392B" },
