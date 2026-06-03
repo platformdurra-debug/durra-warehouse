@@ -19,7 +19,7 @@ export function middleware(request: NextRequest) {
     path === "/manifest.json" || path === "/sw.js" || path === "/auth"
   ) return NextResponse.next();
 
-  const role = request.cookies.get("durra-role")?.value;
+  const role = request.cookies.get("durra-role-warehouse")?.value;
   if (!role) return NextResponse.redirect(new URL("/auth", request.url));
   if (!ALLOWED_ROLES.includes(role)) return NextResponse.redirect(APPS[role] || APPS.customer);
   return NextResponse.next();
