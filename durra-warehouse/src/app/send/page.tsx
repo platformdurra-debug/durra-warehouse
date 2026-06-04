@@ -24,10 +24,21 @@ export default function Page() {
   }, [user]);
 
   const updateStatus = async (id: string) => {
-    setUpdating(id);
     const item = items.find(i => i.id === id);
-    // الحجز ينتقل لـ active (الفستان مع الزبونة)
-    await updateDoc(doc(db, "bookings", id), { status: "active", sentAt: serverTimestamp() });
+    const isCOD = item?.paymentMethod === "cod" && item?.paymentStatus === "cod_pending";
+
+    // لو دفع عند الاستلام — تأكيد استلام المبلغ
+    if (isCOD) {
+      if (!confirm(`هذا الطلب دفع عند الاستلام.\nهل استلمتِ المبلغ (${item?.totalPrice} د.ب) من العروس؟`)) return;
+    }
+    setUpdating(id);
+
+    // الحجز ينتقل لـ active (الفستان مع الزبونة) + تأكيد الدفع لو COD
+    await updateDoc(doc(db, "bookings", id), {
+      status: "active",
+      sentAt: serverTimestamp(),
+      ...(isCOD ? { paymentStatus: "held", codCollectedAt: serverTimestamp() } : {}),
+    });
 
     // سجل في تاريخ المستودع
     await addDoc(collection(db, "warehouseHistory"), {
@@ -95,6 +106,12 @@ export default function Page() {
                     {item.customerName && <div style={{ fontSize: 12, color: "var(--text2)", marginTop: 3 }}>👰 {item.customerName}</div>}
                     {item.customerPhone && <div style={{ fontSize: 11, color: "var(--text3)" }}>📞 {item.customerPhone}</div>}
                     {item.size && <div style={{ fontSize: 11, color: "var(--text3)" }}>المقاس: {item.size}</div>}
+                    {item.paymentMethod === "cod" && item.paymentStatus === "cod_pending" && (
+                      <div style={{ display: "inline-flex", alignItems: "center", gap: 5, marginTop: 6, padding: "4px 10px", borderRadius: 8, background: "rgba(212,136,10,0.12)" }}>
+                        <span>💵</span>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: "#92580A" }}>دفع عند الاستلام — حصّلي {item.totalPrice} د.ب</span>
+                      </div>
+                    )}
                     {start && <div style={{ fontSize: 11, color: "#2D8A5E", marginTop: 4, fontWeight: 600 }}>
                       موعد الاستلام: {start.toLocaleDateString("ar-BH", { day: "numeric", month: "long" })}
                     </div>}
